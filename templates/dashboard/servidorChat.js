@@ -24,9 +24,18 @@ io.sockets.on('connection',function(socket){
 		io.sockets.emit('listarcontactos',conectados);
 		console.log("se conecto :" + usuario + " con el id :" + socket.id );
 	});
-	socket.on('privado',function(datos){
-		io.sockets.connected[datos.id].emit('new message', datos);
-		console.log("***"+datos.nombre +" escribio a " + datos.nombreDestino +" : "+datos.mensaje);
+	socket.on('enviar mensaje',function(datos){
+		console.log('oe');
+		if (datos.id != 'all') {
+			io.sockets.connected[datos.id].emit('new message privado', datos);
+			console.log("***"+datos.nombre +" escribio a " + datos.nombreDestino +" : "+datos.mensaje);
+		}
+		else if (datos.id == 'all')
+		{
+			io.sockets.emit('new message global',datos);
+			console.log("***"+datos.nombre +" escribio: " + datos.mensaje);
+		}
+		
 	});
 	socket.once('disconnect',function(){
 		nuevoConectado = conectados.filter(function(datos){

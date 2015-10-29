@@ -2,7 +2,7 @@
 <html>
 <head>
 	<script src="http://code.jquery.com/jquery-latest.min.js"></script>
-	<script src="http://52.23.172.254:3000/socket.io/socket.io.js"></script>
+	<script src="http://localhost:3000/socket.io/socket.io.js"></script>
     <link href="https://fonts.googleapis.com/css?family=Roboto:regular,bold,italic,thin,light,bolditalic,black,medium&amp;lang=en" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="material.min.css">
@@ -21,7 +21,7 @@
     }
     </style>
     <script>
-	  var socket = io.connect('http://52.23.172.254:3000');
+	  var socket = io.connect('http://localhost:3000');
 	  var usuario = prompt("Porfavor ingresa tu nombre");
 	</script>
 </head>
@@ -89,7 +89,7 @@
 	
 
 	
-	socket.on('new message',function(data){
+	socket.on('new message privado',function(data){
 		if (!$('#cajasChat').find('#' + data.emisorID).length) {
 			chatsAbiertos.push({Destinatario:data.emisorID,Contacto:data.nombre});
 			ReactDOM.render(<ContenedorChat chats={chatsAbiertos}/>,document.getElementById('area'));
@@ -97,7 +97,13 @@
 		$('#cajasChat').find('#' + data.emisorID).find('div').append('<b>'+ data.nombre+"</b>: "+data.mensaje+"<br/>");
 	});
 
-
+	socket.on('new message global',function(data){
+		if (!$('#cajasChat').find('#all').length) {
+			chatsAbiertos.push({Destinatario:'all',Contacto:'Todos'});
+			ReactDOM.render(<ContenedorChat chats={chatsAbiertos}/>,document.getElementById('area'));
+		}
+		$('#cajasChat').find('#all').find('div').append('<b>'+ data.nombre+"</b>: "+data.mensaje+"<br/>");
+	});
 
 	$(document).ready(function () {
 	    if (usuario != null) {
@@ -111,13 +117,17 @@
 		$('#cajasChat').on('keyup','.txtMensaje',function(e){
 			if(e.keyCode == 13)
     		{
-        		var mensaje = $(this).val();/////////////
+    			
+        		var mensaje = $(this).val();
 				var socketid = $(this).parent().attr('id');
+				console.log(socketid);
 				var destinoNombre = $(this).parent().find('h4').html();
 				var usuario = $('#usuarioOculto').attr('value');
 				var socketIdEmisor = $('#usuarioOculto').attr('valueID');
-				socket.emit('privado',{mensaje:mensaje,id:socketid,nombreDestino:destinoNombre,nombre:usuario,emisorID:socketIdEmisor});
-				$(this).parent().find('div').append('<b>'+usuario +"</b> : " + mensaje + "<br/>");
+				socket.emit('enviar mensaje',{mensaje:mensaje,id:socketid,nombreDestino:destinoNombre,nombre:usuario,emisorID:socketIdEmisor});
+				if (socketid != 'all') {
+					$(this).parent().find('div').append('<b>'+usuario +"</b> : " + mensaje + "<br/>");
+				}
 				$(this).val('');
     		}
 			
@@ -146,10 +156,9 @@
 
 
 		socket.on('listarcontactos',function(datos){
-			$('#conectados option').remove();
 			$('#conectados2 li').remove();
+			$('#conectados2').append("<li value='all' class='mdl-menu__item'>Todos</li>");
 			for (var i = 0; i < datos.length; i++) {
-				$('#conectados').append("<option value='"+ datos[i].id +"'>"+datos[i].user+"</option>");
 				$('#conectados2').append("<li value='"+datos[i].id+ "' class='mdl-menu__item'>"+datos[i].user+"</li>");
 			};
 		});	
