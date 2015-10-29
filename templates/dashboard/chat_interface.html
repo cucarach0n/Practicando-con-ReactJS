@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<script src="http://code.jquery.com/jquery-latest.min.js"></script>
+	<script src="http://52.23.172.254:3000/socket.io/socket.io.js"></script>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:regular,bold,italic,thin,light,bolditalic,black,medium&amp;lang=en" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="material.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://fb.me/react-0.14.1.js"></script>
+	<script src="https://fb.me/react-dom-0.14.1.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-core/5.8.23/browser.min.js"></script>
+    <style>
+    #view-source {
+    	float: right;
+      display: block;
+      right: 0%;
+      margin-right: 40px;
+      margin-bottom: 40px;
+      z-index: 700;
+    }
+    </style>
+    <script>
+	  var socket = io.connect('http://52.23.172.254:3000');
+	  var usuario = prompt("Porfavor ingresa tu nombre");
+	</script>
+</head>
+<body >
+	<div>
+		<input type="hidden" id="usuarioOculto" valueID=""/>
+		<button id="view-source" class="mdl-button mdl-js-button mdl-js-ripple-effect mdl-color--accent mdl-color-text--accent-contrast">Conectados</button>
+		
+	</div>
+	<div id="area" style="position: fixed;bottom: 0;left: 0;right: 0;">
+			
+	</div>
+	<ul id="conectados2" class="mdl-menu mdl-menu--bottom-right mdl-js-menu mdl-js-ripple-effect" for="view-source">
+
+    </ul>
+	<script src="../../material.min.js"></script>
+	<script type="text/babel">
+	var chatsAbiertos = [];
+	var nuevaListaChats = [];
+	var CajaChat = React.createClass({
+		render:function(){
+			var cajaEstilo = {height:'294px',
+								width:'20%',
+								float:'right',
+								borderStyle: 'solid',
+								borderWidth: '3px',
+								borderColor:'#FFCCCC',
+								backgroundColor:'#CCFFCC',
+								marginRight:'3px'};
+			var areaChat = {overflow:'scroll',
+							height:'200px',
+							width:'200px'};
+			var titulo = {marginTop:0,
+							id:'titulo',
+							marginBottom:'1',
+							backgroundColor:'#99CCCC',
+							color:'white',
+							textAlign:'center',
+							cursor:'pointer'};
+			var areaText = {width:'97%',
+							height:'50px'};
+			
+			return <div style={cajaEstilo} id={this.props.Destinatario}>
+					<h4 className="hTitulo" style={titulo}>{this.props.Contacto}</h4>
+					<div className="chat-messages" style={areaChat}></div>
+					<input type="text" style={areaText} id="mensaje" className="txtMensaje" placeholder="ingresu tu mensaje"/></div>;
+		}
+
+
+	});
+
+	var ContenedorChat = React.createClass({
+		render: function(){
+			var cajasChat = this.props.chats.map(function(data){
+				return <CajaChat key={data.Destinatario} Destinatario={data.Destinatario} Contacto={data.Contacto}/>;
+			});
+
+			return <div id="cajasChat" style={{height:'300px', width:'100%'}}>
+						{cajasChat}
+					</div>;
+		}
+	});
+
+	ReactDOM.render(<ContenedorChat chats={chatsAbiertos}/>,document.getElementById('area'));
+	
+
+	
+	socket.on('new message',function(data){
+		if (!$('#cajasChat').find('#' + data.emisorID).length) {
+			chatsAbiertos.push({Destinatario:data.emisorID,Contacto:data.nombre});
+			ReactDOM.render(<ContenedorChat chats={chatsAbiertos}/>,document.getElementById('area'));
+		}
+		$('#cajasChat').find('#' + data.emisorID).find('div').append('<b>'+ data.nombre+"</b>: "+data.mensaje+"<br/>");
+	});
+
+
+
+	$(document).ready(function () {
+	    if (usuario != null) {
+	       socket.emit('entrar',usuario); 
+	       $("#usuarioOculto").attr('value',usuario);
+	       $("#usuarioOculto").attr('valueID',socket.io.engine.id);
+	    } else if(usuario == null) {
+	       $("#usuarioOculto").attr('value','');
+	    }
+
+		$('#cajasChat').on('keyup','.txtMensaje',function(e){
+			if(e.keyCode == 13)
+    		{
+        		var mensaje = $(this).val();/////////////
+				var socketid = $(this).parent().attr('id');
+				var destinoNombre = $(this).parent().find('h4').html();
+				var usuario = $('#usuarioOculto').attr('value');
+				var socketIdEmisor = $('#usuarioOculto').attr('valueID');
+				socket.emit('privado',{mensaje:mensaje,id:socketid,nombreDestino:destinoNombre,nombre:usuario,emisorID:socketIdEmisor});
+				$(this).parent().find('div').append('<b>'+usuario +"</b> : " + mensaje + "<br/>");
+				$(this).val('');
+    		}
+			
+		});
+		$('#conectados2').on('click','.mdl-menu__item',function(){
+			var nombre = $(this).html();
+			var id = $(this).attr('value');
+			if ((!$('#cajasChat').find('#' + id).length) && (nombre != $('#usuarioOculto').attr('value'))) {
+				chatsAbiertos.push({Destinatario:id,Contacto:nombre});
+				ReactDOM.render(<ContenedorChat chats={chatsAbiertos}/>,document.getElementById('area'));
+			}
+			else if (nombre == $('#usuarioOculto').attr('value')){
+				alert('Quieres conversar contigo mismo ?)');
+			}
+		});
+		$('#cajasChat').on('click','.hTitulo',function(){
+			var lol = $(this).parent().attr('id');
+			nuevaListaChats = chatsAbiertos.filter(function(datos){
+			return datos.Destinatario !== lol;
+			});
+			chatsAbiertos = [];
+			chatsAbiertos = nuevaListaChats;
+			ReactDOM.render(<ContenedorChat chats={nuevaListaChats}/>,document.getElementById('area'));
+			console.log(nuevaListaChats);
+		});		
+
+
+		socket.on('listarcontactos',function(datos){
+			$('#conectados option').remove();
+			$('#conectados2 li').remove();
+			for (var i = 0; i < datos.length; i++) {
+				$('#conectados').append("<option value='"+ datos[i].id +"'>"+datos[i].user+"</option>");
+				$('#conectados2').append("<li value='"+datos[i].id+ "' class='mdl-menu__item'>"+datos[i].user+"</li>");
+			};
+		});	
+	    
+    	socket.on('disconnect', function () {
+            alert('Se desconecto del servidor :(');
+        });
+
+	});
+	</script>
+
+</body>
+</html>
